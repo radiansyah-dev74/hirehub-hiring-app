@@ -9,16 +9,34 @@ export interface JobFormConfig {
     created_at: string;
 }
 
+// Job status type
+export type JobStatus = 'active' | 'inactive' | 'draft';
+
 export interface Job {
     id: string;
     title: string;
     description: string | null;
+    department: string | null;
     salary_range: string | null;
     is_active: boolean;
+    status?: JobStatus;
     created_at: string;
     updated_at: string;
     form_configs?: JobFormConfig[];
 }
+
+// Available departments
+export const DEPARTMENTS = [
+    'Engineering',
+    'Design',
+    'Product',
+    'Marketing',
+    'Sales',
+    'Human Resources',
+    'Finance',
+    'Operations',
+    'Customer Support',
+] as const;
 
 // Application related types
 export type ApplicationStatus = 'applied' | 'interview' | 'hired' | 'rejected';
@@ -38,6 +56,9 @@ export interface Application {
 // Form field definitions for dynamic forms
 export const AVAILABLE_FORM_FIELDS = [
     { name: 'phone', label: 'Phone Number', type: 'tel' },
+    { name: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other', 'Prefer not to say'] },
+    { name: 'date_of_birth', label: 'Date of Birth', type: 'date' },
+    { name: 'domicile', label: 'Domicile / City', type: 'text' },
     { name: 'linkedin', label: 'LinkedIn URL', type: 'url' },
     { name: 'resume_url', label: 'Resume Link', type: 'url' },
     { name: 'portfolio', label: 'Portfolio URL', type: 'url' },

@@ -1,40 +1,44 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/store';
 import { MainLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Plus, Search, Pencil, Trash2, Users } from 'lucide-react';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Job } from '@/types';
 
 export default function AdminJobsPage() {
     const { jobs, isLoadingJobs, fetchJobs, deleteJob } = useAppStore();
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
     useEffect(() => {
         fetchJobs();
     }, [fetchJobs]);
 
-    const filteredJobs = jobs.filter((job) => {
-        const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus =
-            statusFilter === 'all' ||
-            (statusFilter === 'active' && job.is_active) ||
-            (statusFilter === 'inactive' && !job.is_active);
-        return matchesSearch && matchesStatus;
-    });
+    // Filter jobs by search
+    const filteredJobs = useMemo(() => {
+        return jobs.filter((job) =>
+            job.title.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [jobs, searchQuery]);
 
     const handleDelete = async (id: string) => {
         if (confirm('Are you sure you want to delete this job?')) {
@@ -42,117 +46,156 @@ export default function AdminJobsPage() {
         }
     };
 
+    // Get status badge styling based on Figma design
+    const getStatusBadge = (job: Job) => {
+        if (job.is_active) {
+            return (
+                <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
+                    Active
+                </Badge>
+            );
+        }
+        return (
+            <Badge className="bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20">
+                Inactive
+            </Badge>
+        );
+    };
+
+    // Format date like Figma: "12 Dec 2024"
+    const formatDate = (dateStr: string) => {
+        return new Date(dateStr).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+    };
+
     return (
         <MainLayout>
             <div className="space-y-6">
-                {/* Header */}
+                {/* Header - Following Figma design */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
-                        <p className="text-muted-foreground">
-                            Manage your job postings
+                        <h1 className="font-heading text-2xl font-bold">Job List</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Manage all job vacancies
                         </p>
                     </div>
                     <Link href="/admin/jobs/new">
-                        <Button className="gap-2">
+                        <Button className="gap-2 bg-[#FFB400] text-[#1D1F20] hover:bg-[#E5A300] font-semibold">
                             <Plus className="h-4 w-4" />
-                            Create Job
+                            Add New Job
                         </Button>
                     </Link>
                 </div>
 
-                {/* Filters */}
-                <div className="flex gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Search jobs..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <Select
-                        value={statusFilter}
-                        onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}
-                    >
-                        <SelectTrigger className="w-40">
-                            <SelectValue placeholder="Filter by status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Jobs</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                    </Select>
+                {/* Search Bar */}
+                <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        placeholder="Search job name..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 bg-card border-border"
+                    />
                 </div>
 
-                {/* Jobs Grid */}
-                {isLoadingJobs ? (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                    </div>
-                ) : filteredJobs.length === 0 ? (
-                    <Card>
-                        <CardContent className="py-12 text-center">
-                            <p className="text-muted-foreground">No jobs found</p>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredJobs.map((job) => (
-                            <JobCard key={job.id} job={job} onDelete={handleDelete} />
-                        ))}
-                    </div>
-                )}
+                {/* Job List Table - Following Figma design */}
+                <Card className="border-border">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-medium">
+                            All Jobs ({filteredJobs.length})
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        {isLoadingJobs ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#FFB400] border-t-transparent" />
+                            </div>
+                        ) : filteredJobs.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 text-center">
+                                <div className="mb-4 text-6xl">📋</div>
+                                <h3 className="mb-2 font-heading text-lg font-semibold">No job vacancies yet</h3>
+                                <p className="mb-4 text-sm text-muted-foreground">
+                                    Create your first job to start receiving applications
+                                </p>
+                                <Link href="/admin/jobs/new">
+                                    <Button className="bg-[#FFB400] text-[#1D1F20] hover:bg-[#E5A300]">
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Create a new job
+                                    </Button>
+                                </Link>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="border-border hover:bg-transparent">
+                                        <TableHead className="font-semibold">Status</TableHead>
+                                        <TableHead className="font-semibold">Job Name</TableHead>
+                                        <TableHead className="font-semibold">Start Date</TableHead>
+                                        <TableHead className="font-semibold">Salary Range</TableHead>
+                                        <TableHead className="text-right font-semibold">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredJobs.map((job) => (
+                                        <TableRow key={job.id} className="border-border">
+                                            <TableCell>
+                                                {getStatusBadge(job)}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div>
+                                                    <p className="font-medium">{job.title}</p>
+                                                    {job.department && (
+                                                        <p className="text-xs text-muted-foreground">{job.department}</p>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {formatDate(job.created_at)}
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {job.salary_range || '-'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem asChild>
+                                                            <Link href={`/admin/jobs/${job.id}/edit`} className="flex items-center gap-2">
+                                                                <Pencil className="h-4 w-4" />
+                                                                Edit Job
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem asChild>
+                                                            <Link href={`/admin/candidates?job=${job.id}`} className="flex items-center gap-2">
+                                                                <Users className="h-4 w-4" />
+                                                                View Candidates
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="flex items-center gap-2 text-red-500 focus:text-red-500"
+                                                            onClick={() => handleDelete(job.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                            Delete Job
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </MainLayout>
-    );
-}
-
-function JobCard({ job, onDelete }: { job: Job; onDelete: (id: string) => void }) {
-    return (
-        <Card className="group relative overflow-hidden transition-all hover:shadow-lg">
-            <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                        <CardTitle className="text-lg">{job.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">
-                            {job.description || 'No description'}
-                        </CardDescription>
-                    </div>
-                    <Badge variant={job.is_active ? 'default' : 'secondary'}>
-                        {job.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                        {job.salary_range || 'Salary not specified'}
-                    </div>
-                    <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                        <Link href={`/admin/jobs/${job.id}/edit`}>
-                            <Button variant="outline" size="icon" className="h-8 w-8">
-                                <Pencil className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <Link href={`/admin/candidates?job=${job.id}`}>
-                            <Button variant="outline" size="icon" className="h-8 w-8">
-                                <Users className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                            onClick={() => onDelete(job.id)}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
     );
 }

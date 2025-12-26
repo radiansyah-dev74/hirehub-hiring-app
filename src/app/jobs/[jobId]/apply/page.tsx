@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppStore } from '@/store';
 import { MainLayout } from '@/components/layout';
 import { GestureCamera } from '@/components/application/GestureCamera';
@@ -10,27 +12,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { ArrowLeft, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { AVAILABLE_FORM_FIELDS, Job, JobFormConfig } from '@/types';
+import { generateApplicationSchema, ApplicationFormData } from '@/lib/validators';
 
 export default function ApplyJobPage() {
     const params = useParams();
     const router = useRouter();
     const jobId = params.jobId as string;
 
-    const { jobs, fetchJobs, createApplication } = useAppStore();
+    const { jobs, fetchJobs, createApplication, error: storeError } = useAppStore();
     const [job, setJob] = useState<Job | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-    const [errorMessage, setErrorMessage] = useState('');
-
-    // Form state
-    const [applicantName, setApplicantName] = useState('');
-    const [email, setEmail] = useState('');
-    const [formData, setFormData] = useState<Record<string, string>>({});
     const [photoData, setPhotoData] = useState<string | null>(null);
-    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+    // Generate dynamic schema based on job's form config
+    const validationSchema = useMemo(() => {
+        if (!job?.form_configs) return null;
+        return generateApplicationSchema(job.form_configs);
+    }, [job?.form_configs]);
+
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        formState: { errors },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } = useForm<any>({
+        resolver: validationSchema ? zodResolver(validationSchema) : undefined,
+        defaultValues: {
+            applicant_name: '',
+            email: '',
+        },
+    });
 
     useEffect(() => {
         fetchJobs().then(() => setIsLoading(false));
@@ -40,6 +65,13 @@ export default function ApplyJobPage() {
         const foundJob = jobs.find((j) => j.id === jobId);
         setJob(foundJob || null);
     }, [jobs, jobId]);
+
+    // Update photo in form when captured
+    useEffect(() => {
+        if (photoData) {
+            setValue('photo', photoData);
+        }
+    }, [photoData, setValue]);
 
     const getFieldConfig = (fieldName: string): JobFormConfig | undefined => {
         return job?.form_configs?.find((config) => config.field_name === fieldName);
@@ -55,78 +87,40 @@ export default function ApplyJobPage() {
         return config?.requirement === 'mandatory';
     };
 
-    const handleFieldChange = (fieldName: string, value: string) => {
-        setFormData((prev) => ({ ...prev, [fieldName]: value }));
-        // Clear validation error when user types
-        if (validationErrors[fieldName]) {
-            setValidationErrors((prev) => {
-                const next = { ...prev };
-                delete next[fieldName];
-                return next;
-            });
-        }
-    };
-
-    const validateForm = (): boolean => {
-        const errors: Record<string, string> = {};
-
-        if (!applicantName.trim()) {
-            errors.applicantName = 'Name is required';
-        }
-
-        if (!email.trim()) {
-            errors.email = 'Email is required';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            errors.email = 'Please enter a valid email';
-        }
-
-        // Validate dynamic fields
-        AVAILABLE_FORM_FIELDS.forEach((field) => {
-            if (isFieldRequired(field.name) && !formData[field.name]?.trim()) {
-                if (field.type === 'camera' && !photoData) {
-                    errors[field.name] = `${field.label} is required`;
-                } else if (field.type !== 'camera' && !formData[field.name]?.trim()) {
-                    errors[field.name] = `${field.label} is required`;
-                }
-            }
-        });
-
-        setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!validateForm()) {
-            return;
-        }
-
+    const onSubmit = async (data: ApplicationFormData) => {
         setIsSubmitting(true);
         setSubmitStatus('idle');
 
         try {
             await createApplication({
                 job_id: jobId,
-                applicant_name: applicantName,
-                email,
-                form_data: { ...formData, photo: photoData },
+                applicant_name: data.applicant_name,
+                email: data.email,
+                form_data: data,
                 photo_url: photoData,
             });
             setSubmitStatus('success');
-        } catch (err) {
+        } catch {
             setSubmitStatus('error');
-            setErrorMessage(err instanceof Error ? err.message : 'Failed to submit application');
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    // Count required fields for progress indicator
+    const visibleFields = AVAILABLE_FORM_FIELDS.filter(f => isFieldVisible(f.name));
+    const requiredFields = visibleFields.filter(f => isFieldRequired(f.name));
+    const watchedValues = watch();
+    const filledRequired = requiredFields.filter(f => {
+        const value = watchedValues[f.name];
+        return value && String(value).trim() !== '';
+    }).length;
+
     if (isLoading) {
         return (
             <MainLayout>
                 <div className="flex items-center justify-center py-12">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
             </MainLayout>
         );
@@ -174,7 +168,7 @@ export default function ApplyJobPage() {
 
     return (
         <MainLayout>
-            <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-3xl space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-4">
                     <Button
@@ -185,17 +179,37 @@ export default function ApplyJobPage() {
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <div>
+                    <div className="flex-1">
                         <h1 className="text-2xl font-bold">Apply for {job.title}</h1>
-                        <p className="text-muted-foreground">{job.salary_range || 'Salary not specified'}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            {job.department && (
+                                <Badge variant="outline">{job.department}</Badge>
+                            )}
+                            <span className="text-muted-foreground">{job.salary_range || 'Salary not specified'}</span>
+                        </div>
                     </div>
                 </div>
 
+                {/* Progress Indicator */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="flex-1">
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                                className="h-full bg-primary transition-all duration-300"
+                                style={{ width: `${(filledRequired / Math.max(requiredFields.length, 1)) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        {filledRequired} of {requiredFields.length + 2} required fields
+                    </span>
+                </div>
+
                 {/* Error Banner */}
-                {submitStatus === 'error' && (
+                {(submitStatus === 'error' || storeError) && (
                     <div className="flex items-center gap-3 rounded-lg bg-destructive/10 p-4 text-destructive">
-                        <AlertCircle className="h-5 w-5" />
-                        <span>{errorMessage}</span>
+                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                        <span>{storeError || 'Failed to submit application. Please try again.'}</span>
                     </div>
                 )}
 
@@ -208,18 +222,17 @@ export default function ApplyJobPage() {
                     <CardContent className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="name">
+                                <Label htmlFor="applicant_name">
                                     Full Name <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
-                                    id="name"
+                                    id="applicant_name"
                                     placeholder="John Doe"
-                                    value={applicantName}
-                                    onChange={(e) => setApplicantName(e.target.value)}
-                                    className={validationErrors.applicantName ? 'border-red-500' : ''}
+                                    {...register('applicant_name')}
+                                    className={errors.applicant_name ? 'border-red-500' : ''}
                                 />
-                                {validationErrors.applicantName && (
-                                    <p className="text-sm text-red-500">{validationErrors.applicantName}</p>
+                                {errors.applicant_name && (
+                                    <p className="text-sm text-red-500">{String(errors.applicant_name.message)}</p>
                                 )}
                             </div>
                             <div className="space-y-2">
@@ -230,12 +243,11 @@ export default function ApplyJobPage() {
                                     id="email"
                                     type="email"
                                     placeholder="john@example.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className={validationErrors.email ? 'border-red-500' : ''}
+                                    {...register('email')}
+                                    className={errors.email ? 'border-red-500' : ''}
                                 />
-                                {validationErrors.email && (
-                                    <p className="text-sm text-red-500">{validationErrors.email}</p>
+                                {errors.email && (
+                                    <p className="text-sm text-red-500">{String(errors.email.message)}</p>
                                 )}
                             </div>
                         </div>
@@ -243,73 +255,102 @@ export default function ApplyJobPage() {
                 </Card>
 
                 {/* Dynamic Fields */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Additional Information</CardTitle>
-                        <CardDescription>Complete the fields as required by this position</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {AVAILABLE_FORM_FIELDS.filter((field) => field.type !== 'camera').map((field) => {
-                            if (!isFieldVisible(field.name)) return null;
+                {visibleFields.filter(f => f.type !== 'camera').length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Additional Information</CardTitle>
+                            <CardDescription>Complete the fields as required by this position</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {AVAILABLE_FORM_FIELDS.filter(field => field.type !== 'camera' && isFieldVisible(field.name)).map((field) => {
+                                const isRequired = isFieldRequired(field.name);
+                                const hasError = !!errors[field.name];
 
-                            const isRequired = isFieldRequired(field.name);
-                            const hasError = !!validationErrors[field.name];
+                                return (
+                                    <div key={field.name} className="space-y-2">
+                                        <Label htmlFor={field.name}>
+                                            {field.label} {isRequired && <span className="text-red-500">*</span>}
+                                        </Label>
 
-                            return (
-                                <div key={field.name} className="space-y-2">
-                                    <Label htmlFor={field.name}>
-                                        {field.label} {isRequired && <span className="text-red-500">*</span>}
-                                    </Label>
-                                    {field.type === 'textarea' ? (
-                                        <Textarea
-                                            id={field.name}
-                                            placeholder={`Enter your ${field.label.toLowerCase()}`}
-                                            value={formData[field.name] || ''}
-                                            onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                                            className={hasError ? 'border-red-500' : ''}
-                                            rows={4}
-                                        />
-                                    ) : (
-                                        <Input
-                                            id={field.name}
-                                            type={field.type}
-                                            placeholder={`Enter your ${field.label.toLowerCase()}`}
-                                            value={formData[field.name] || ''}
-                                            onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                                            className={hasError ? 'border-red-500' : ''}
-                                        />
-                                    )}
-                                    {hasError && (
-                                        <p className="text-sm text-red-500">{validationErrors[field.name]}</p>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </CardContent>
-                </Card>
+                                        {field.type === 'textarea' ? (
+                                            <Textarea
+                                                id={field.name}
+                                                placeholder={`Enter your ${field.label.toLowerCase()}`}
+                                                {...register(field.name)}
+                                                className={hasError ? 'border-red-500' : ''}
+                                                rows={4}
+                                            />
+                                        ) : field.type === 'select' && 'options' in field ? (
+                                            <Select
+                                                onValueChange={(value) => setValue(field.name, value)}
+                                                defaultValue=""
+                                            >
+                                                <SelectTrigger className={hasError ? 'border-red-500' : ''}>
+                                                    <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {('options' in field ? Array.from(field.options as readonly string[]) : []).map((option) => (
+                                                        <SelectItem key={option} value={option}>
+                                                            {option}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : field.type === 'date' ? (
+                                            <Input
+                                                id={field.name}
+                                                type="date"
+                                                {...register(field.name)}
+                                                className={hasError ? 'border-red-500' : ''}
+                                            />
+                                        ) : (
+                                            <Input
+                                                id={field.name}
+                                                type={field.type}
+                                                placeholder={`Enter your ${field.label.toLowerCase()}`}
+                                                {...register(field.name)}
+                                                className={hasError ? 'border-red-500' : ''}
+                                            />
+                                        )}
+
+                                        {hasError && (
+                                            <p className="text-sm text-red-500">{errors[field.name]?.message as string}</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Gesture Camera (if visible) */}
                 {isFieldVisible('photo') && (
-                    <GestureCamera
-                        onCapture={setPhotoData}
-                        required={isFieldRequired('photo')}
-                    />
+                    <div>
+                        <GestureCamera
+                            onCapture={setPhotoData}
+                            required={isFieldRequired('photo')}
+                        />
+                        {errors.photo && !photoData && (
+                            <p className="text-sm text-red-500 mt-2">{errors.photo.message as string}</p>
+                        )}
+                    </div>
                 )}
 
-                {/* Submit */}
-                <div className="flex justify-end gap-4">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => router.back()}
-                    >
-                        Cancel
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting} className="gap-2">
-                        <Send className="h-4 w-4" />
-                        {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                    </Button>
-                </div>
+                {/* Submit - Teal button like Figma */}
+                <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full gap-2 bg-[#0891B2] hover:bg-[#0E7490] text-white font-semibold py-3"
+                >
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Submitting...
+                        </>
+                    ) : (
+                        'Submit'
+                    )}
+                </Button>
             </form>
         </MainLayout>
     );

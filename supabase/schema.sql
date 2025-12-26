@@ -6,6 +6,7 @@ create table if not exists jobs (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
   description text,
+  department text,
   salary_range text,
   is_active boolean default true,
   created_at timestamp with time zone default now(),
