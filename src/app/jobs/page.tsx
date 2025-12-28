@@ -72,7 +72,7 @@ export default function JobsPage() {
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {filteredJobs.map((job) => (
                             <JobCard key={job.id} job={job} applied={hasApplied(job.id)} />
                         ))}
