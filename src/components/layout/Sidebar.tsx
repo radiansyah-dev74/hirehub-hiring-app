@@ -17,7 +17,11 @@ import {
     Sun,
 } from 'lucide-react';
 
-export function Sidebar() {
+interface SidebarProps {
+    onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const { userRole, setUserRole } = useAppStore();
@@ -93,6 +97,7 @@ export function Sidebar() {
                             <Link
                                 key={link.href}
                                 href={link.href}
+                                onClick={onNavigate}
                                 className={cn(
                                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                                     isActive

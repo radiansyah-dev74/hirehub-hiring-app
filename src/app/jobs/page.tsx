@@ -35,11 +35,11 @@ export default function JobsPage() {
         <MainLayout>
             <div className="space-y-8">
                 {/* Hero Section */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-8 text-white">
+                <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white">
                     <div className="absolute inset-0 bg-black/20" />
                     <div className="relative z-10">
-                        <h1 className="mb-2 text-4xl font-bold">Find Your Dream Job</h1>
-                        <p className="mb-6 text-lg text-white/80">
+                        <h1 className="mb-2 text-2xl md:text-4xl font-bold">Find Your Dream Job</h1>
+                        <p className="mb-4 md:mb-6 text-sm md:text-lg text-white/80">
                             Discover opportunities that match your skills and passion
                         </p>
                         <div className="relative max-w-xl">

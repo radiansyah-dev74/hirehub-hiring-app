@@ -75,15 +75,15 @@ export default function AdminJobsPage() {
         <MainLayout>
             <div className="space-y-6">
                 {/* Header - Following Figma design */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="font-heading text-2xl font-bold">Job List</h1>
+                        <h1 className="font-heading text-xl md:text-2xl font-bold">Job List</h1>
                         <p className="text-sm text-muted-foreground">
                             Manage all job vacancies
                         </p>
                     </div>
                     <Link href="/admin/jobs/new">
-                        <Button className="gap-2 bg-[#FFB400] text-[#1D1F20] hover:bg-[#E5A300] font-semibold">
+                        <Button className="gap-2 bg-[#FFB400] text-[#1D1F20] hover:bg-[#E5A300] font-semibold w-full sm:w-auto">
                             <Plus className="h-4 w-4" />
                             Add New Job
                         </Button>
@@ -91,7 +91,7 @@ export default function AdminJobsPage() {
                 </div>
 
                 {/* Search Bar */}
-                <div className="relative max-w-md">
+                <div className="relative w-full md:max-w-md">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         placeholder="Search job name..."
@@ -114,7 +114,7 @@ export default function AdminJobsPage() {
                                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#FFB400] border-t-transparent" />
                             </div>
                         ) : filteredJobs.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                                 <div className="mb-4 text-6xl">📋</div>
                                 <h3 className="mb-2 font-heading text-lg font-semibold">No job vacancies yet</h3>
                                 <p className="mb-4 text-sm text-muted-foreground">
@@ -128,70 +128,72 @@ export default function AdminJobsPage() {
                                 </Link>
                             </div>
                         ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="border-border hover:bg-transparent">
-                                        <TableHead className="font-semibold">Status</TableHead>
-                                        <TableHead className="font-semibold">Job Name</TableHead>
-                                        <TableHead className="font-semibold">Start Date</TableHead>
-                                        <TableHead className="font-semibold">Salary Range</TableHead>
-                                        <TableHead className="text-right font-semibold">Action</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredJobs.map((job) => (
-                                        <TableRow key={job.id} className="border-border">
-                                            <TableCell>
-                                                {getStatusBadge(job)}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div>
-                                                    <p className="font-medium">{job.title}</p>
-                                                    {job.department && (
-                                                        <p className="text-xs text-muted-foreground">{job.department}</p>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {formatDate(job.created_at)}
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {job.salary_range || '-'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/admin/jobs/${job.id}/edit`} className="flex items-center gap-2">
-                                                                <Pencil className="h-4 w-4" />
-                                                                Edit Job
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/admin/candidates?job=${job.id}`} className="flex items-center gap-2">
-                                                                <Users className="h-4 w-4" />
-                                                                View Candidates
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="flex items-center gap-2 text-red-500 focus:text-red-500"
-                                                            onClick={() => handleDelete(job.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                            Delete Job
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
+                            <div className="overflow-x-auto">
+                                <Table className="min-w-[600px]">
+                                    <TableHeader>
+                                        <TableRow className="border-border hover:bg-transparent">
+                                            <TableHead className="font-semibold">Status</TableHead>
+                                            <TableHead className="font-semibold">Job Name</TableHead>
+                                            <TableHead className="font-semibold">Start Date</TableHead>
+                                            <TableHead className="font-semibold">Salary Range</TableHead>
+                                            <TableHead className="text-right font-semibold">Action</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredJobs.map((job) => (
+                                            <TableRow key={job.id} className="border-border">
+                                                <TableCell>
+                                                    {getStatusBadge(job)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div>
+                                                        <p className="font-medium">{job.title}</p>
+                                                        {job.department && (
+                                                            <p className="text-xs text-muted-foreground">{job.department}</p>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {formatDate(job.created_at)}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {job.salary_range || '-'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/admin/jobs/${job.id}/edit`} className="flex items-center gap-2">
+                                                                    <Pencil className="h-4 w-4" />
+                                                                    Edit Job
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/admin/candidates?job=${job.id}`} className="flex items-center gap-2">
+                                                                    <Users className="h-4 w-4" />
+                                                                    View Candidates
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                className="flex items-center gap-2 text-red-500 focus:text-red-500"
+                                                                onClick={() => handleDelete(job.id)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                                Delete Job
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
