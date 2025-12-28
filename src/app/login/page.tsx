@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store';
 import { Button } from '@/components/ui/button';
@@ -122,9 +123,17 @@ export default function LoginPage() {
                             {isLoading ? 'Memproses...' : 'Masuk'}
                         </Button>
 
+                        {/* Register link */}
+                        <p className="text-sm text-center text-gray-600 mt-4">
+                            Belum punya akun?{' '}
+                            <Link href="/register" className="text-[#FFB400] hover:underline font-medium">
+                                Daftar di sini
+                            </Link>
+                        </p>
+
                         {/* Demo hint */}
-                        <p className="text-xs text-center text-gray-400 mt-4">
-                            Demo: Use any email with &quot;admin&quot; for admin access, or any email for applicant access
+                        <p className="text-xs text-center text-gray-400 mt-2">
+                            Demo: Use email with &quot;admin&quot; for admin access
                         </p>
                     </form>
                 </CardContent>

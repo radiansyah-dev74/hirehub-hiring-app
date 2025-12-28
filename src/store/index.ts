@@ -22,6 +22,7 @@ interface AppState {
     fetchApplications: (jobId?: string) => Promise<void>;
     createApplication: (application: Omit<Application, 'id' | 'created_at' | 'status'>) => Promise<Application>;
     updateApplicationStatus: (id: string, status: Application['status']) => Promise<void>;
+    deleteApplication: (id: string) => Promise<void>;
 
     // Auth simulation
     userRole: 'admin' | 'applicant' | null;
@@ -410,6 +411,23 @@ export const useAppStore = create<AppState>((set, get) => ({
             sessionApplications = sessionApplications.map(app =>
                 app.id === id ? { ...app, status } : app
             );
+        } catch (error) {
+            set({ error: (error as Error).message });
+            throw error;
+        }
+    },
+
+    deleteApplication: async (id) => {
+        set({ error: null });
+        try {
+            // In real implementation, call Supabase delete
+            // if (isSupabaseConfigured) {
+            //     await supabaseService.deleteApplication(id);
+            // }
+            set(state => ({
+                applications: state.applications.filter(app => app.id !== id),
+            }));
+            sessionApplications = sessionApplications.filter(app => app.id !== id);
         } catch (error) {
             set({ error: (error as Error).message });
             throw error;

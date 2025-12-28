@@ -7,6 +7,7 @@ import {
     ColumnFiltersState,
     ColumnOrderState,
     ColumnSizingState,
+    RowSelectionState,
     SortingState,
     VisibilityState,
     flexRender,
@@ -39,6 +40,14 @@ import { MainLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     Select,
     SelectContent,
@@ -62,6 +71,9 @@ import {
     GripVertical,
     Download,
     RotateCcw,
+    Trash2,
+    Eye,
+    CheckSquare,
 } from 'lucide-react';
 import { Application, ApplicationStatus } from '@/types';
 
@@ -76,18 +88,19 @@ const statusColors: Record<ApplicationStatus, string> = {
 const COLUMN_ORDER_KEY = 'hirehub-candidates-column-order';
 const COLUMN_SIZING_KEY = 'hirehub-candidates-column-sizing';
 
-// Default column order
-const DEFAULT_COLUMN_ORDER = ['applicant_name', 'email', 'phone', 'job_id', 'status', 'created_at', 'actions'];
+// Default column order - now includes 'select' column
+const DEFAULT_COLUMN_ORDER = ['select', 'applicant_name', 'email', 'phone', 'job_id', 'status', 'created_at', 'actions'];
 
 // Default column widths
 const DEFAULT_COLUMN_SIZING: ColumnSizingState = {
+    select: 50,
     applicant_name: 180,
     email: 220,
     phone: 140,
     job_id: 180,
     status: 120,
     created_at: 120,
-    actions: 140,
+    actions: 160,
 };
 
 // Draggable header component for reordering
@@ -112,6 +125,9 @@ function DraggableTableHeader({ header }: { header: Header<Application, unknown>
         minWidth: header.getSize(),
     };
 
+    // Don't allow dragging for select column
+    const isDraggable = header.column.id !== 'select';
+
     return (
         <TableHead
             ref={setNodeRef}
@@ -120,14 +136,16 @@ function DraggableTableHeader({ header }: { header: Header<Application, unknown>
         >
             <div className="flex items-center gap-1">
                 {/* Drag handle */}
-                <button
-                    {...attributes}
-                    {...listeners}
-                    className="cursor-grab opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 -ml-1"
-                    title="Drag to reorder"
-                >
-                    <GripVertical className="h-4 w-4" />
-                </button>
+                {isDraggable && (
+                    <button
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 -ml-1"
+                        title="Drag to reorder"
+                    >
+                        <GripVertical className="h-4 w-4" />
+                    </button>
+                )}
 
                 {/* Header content */}
                 <div className="flex-1">
@@ -153,17 +171,111 @@ function DraggableTableHeader({ header }: { header: Header<Application, unknown>
     );
 }
 
+// Candidate Detail Modal Component
+function CandidateDetailModal({
+    application,
+    isOpen,
+    onClose,
+    jobs
+}: {
+    application: Application | null;
+    isOpen: boolean;
+    onClose: () => void;
+    jobs: { id: string; title: string }[];
+}) {
+    if (!application) return null;
+    const job = jobs.find(j => j.id === application.job_id);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Eye className="h-5 w-5" />
+                        Candidate Details
+                    </DialogTitle>
+                    <DialogDescription>
+                        Application for {job?.title || 'Unknown Job'}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6 pt-4">
+                    {/* Basic Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-muted-foreground">Name</label>
+                            <p className="text-lg font-semibold">{application.applicant_name}</p>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-muted-foreground">Status</label>
+                            <Badge className={`ml-2 ${statusColors[application.status]}`}>
+                                {application.status}
+                            </Badge>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-muted-foreground">Email</label>
+                            <p>{application.email}</p>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-muted-foreground">Applied Date</label>
+                            <p>{new Date(application.created_at).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric'
+                            })}</p>
+                        </div>
+                    </div>
+
+                    {/* Form Data */}
+                    {application.form_data && Object.keys(application.form_data).length > 0 && (
+                        <div>
+                            <h4 className="font-semibold mb-3 border-b pb-2">Application Details</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                {Object.entries(application.form_data).map(([key, value]) => (
+                                    <div key={key}>
+                                        <label className="text-sm font-medium text-muted-foreground capitalize">
+                                            {key.replace(/_/g, ' ')}
+                                        </label>
+                                        <p className="break-words">{String(value) || 'N/A'}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Photo Preview */}
+                    {application.photo_url && (
+                        <div>
+                            <h4 className="font-semibold mb-3 border-b pb-2">Profile Photo</h4>
+                            <img
+                                src={application.photo_url}
+                                alt={`${application.applicant_name}'s photo`}
+                                className="w-32 h-32 object-cover rounded-lg border"
+                            />
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function CandidatesPageContent() {
     const searchParams = useSearchParams();
     const jobFilter = searchParams.get('job');
 
-    const { applications, jobs, isLoadingApplications, fetchApplications, fetchJobs, updateApplicationStatus } = useAppStore();
+    const { applications, jobs, isLoadingApplications, fetchApplications, fetchJobs, updateApplicationStatus, deleteApplication } = useAppStore();
 
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
     const [globalFilter, setGlobalFilter] = useState('');
     const [pageSize, setPageSize] = useState(10);
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+    // Modal state
+    const [selectedCandidate, setSelectedCandidate] = useState<Application | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     // Column order state with localStorage persistence
     const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(() => {
@@ -249,8 +361,65 @@ function CandidatesPageContent() {
         link.click();
     }, [applications, jobs]);
 
+    // Bulk delete selected applications
+    const bulkDelete = useCallback(async () => {
+        const selectedIds = Object.keys(rowSelection).filter(key => rowSelection[key]);
+        const selectedRows = table.getSelectedRowModel().rows;
+
+        if (selectedRows.length === 0) return;
+
+        if (confirm(`Are you sure you want to delete ${selectedRows.length} application(s)?`)) {
+            for (const row of selectedRows) {
+                await deleteApplication(row.original.id);
+            }
+            setRowSelection({});
+        }
+    }, [rowSelection, deleteApplication]);
+
+    // Bulk update status
+    const bulkUpdateStatus = useCallback(async (newStatus: ApplicationStatus) => {
+        const selectedRows = table.getSelectedRowModel().rows;
+
+        if (selectedRows.length === 0) return;
+
+        for (const row of selectedRows) {
+            await updateApplicationStatus(row.original.id, newStatus);
+        }
+        setRowSelection({});
+    }, [updateApplicationStatus]);
+
+    // View candidate details
+    const viewCandidateDetails = useCallback((application: Application) => {
+        setSelectedCandidate(application);
+        setIsDetailModalOpen(true);
+    }, []);
+
     const columns: ColumnDef<Application>[] = useMemo(
         () => [
+            // Selection column
+            {
+                id: 'select',
+                header: ({ table }) => (
+                    <Checkbox
+                        checked={
+                            table.getIsAllPageRowsSelected() ||
+                            (table.getIsSomePageRowsSelected() && 'indeterminate')
+                        }
+                        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                        aria-label="Select all"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <Checkbox
+                        checked={row.getIsSelected()}
+                        onCheckedChange={(value) => row.toggleSelected(!!value)}
+                        aria-label="Select row"
+                    />
+                ),
+                size: 50,
+                enableResizing: false,
+                enableSorting: false,
+            },
             {
                 accessorKey: 'applicant_name',
                 header: ({ column }) => (
@@ -343,29 +512,39 @@ function CandidatesPageContent() {
                 cell: ({ row }) => {
                     const application = row.original;
                     return (
-                        <Select
-                            value={application.status}
-                            onValueChange={(value: ApplicationStatus) =>
-                                updateApplicationStatus(application.id, value)
-                            }
-                        >
-                            <SelectTrigger className="w-28">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="applied">Applied</SelectItem>
-                                <SelectItem value="interview">Interview</SelectItem>
-                                <SelectItem value="hired">Hired</SelectItem>
-                                <SelectItem value="rejected">Rejected</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => viewCandidateDetails(application)}
+                                title="View Details"
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
+                            <Select
+                                value={application.status}
+                                onValueChange={(value: ApplicationStatus) =>
+                                    updateApplicationStatus(application.id, value)
+                                }
+                            >
+                                <SelectTrigger className="w-24 h-8">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="applied">Applied</SelectItem>
+                                    <SelectItem value="interview">Interview</SelectItem>
+                                    <SelectItem value="hired">Hired</SelectItem>
+                                    <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     );
                 },
-                size: 140,
+                size: 160,
                 enableResizing: false,
             },
         ],
-        [jobs, updateApplicationStatus]
+        [jobs, updateApplicationStatus, viewCandidateDetails]
     );
 
     const table = useReactTable({
@@ -373,6 +552,7 @@ function CandidatesPageContent() {
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
+        onRowSelectionChange: setRowSelection,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
@@ -382,6 +562,7 @@ function CandidatesPageContent() {
         onColumnOrderChange: setColumnOrder,
         onColumnSizingChange: setColumnSizing,
         columnResizeMode: 'onChange',
+        enableRowSelection: true,
         state: {
             sorting,
             columnFilters,
@@ -389,6 +570,7 @@ function CandidatesPageContent() {
             globalFilter,
             columnOrder,
             columnSizing,
+            rowSelection,
             pagination: {
                 pageIndex: 0,
                 pageSize,
@@ -424,14 +606,16 @@ function CandidatesPageContent() {
         }
     };
 
+    const selectedCount = Object.keys(rowSelection).filter(key => rowSelection[key]).length;
+
     return (
         <MainLayout>
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
-                        <p className="text-muted-foreground">
+                        <h1 className="font-heading text-2xl font-bold">Manage Candidates</h1>
+                        <p className="text-sm text-muted-foreground">
                             Review and manage job applications
                         </p>
                     </div>
@@ -446,6 +630,33 @@ function CandidatesPageContent() {
                         </Button>
                     </div>
                 </div>
+
+                {/* Bulk Actions Toolbar - shows when rows are selected */}
+                {selectedCount > 0 && (
+                    <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <CheckSquare className="h-5 w-5 text-primary" />
+                        <span className="font-medium">{selectedCount} selected</span>
+                        <div className="flex-1" />
+                        <Select onValueChange={(value: ApplicationStatus) => bulkUpdateStatus(value)}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Set status..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="applied">Set to Applied</SelectItem>
+                                <SelectItem value="interview">Set to Interview</SelectItem>
+                                <SelectItem value="hired">Set to Hired</SelectItem>
+                                <SelectItem value="rejected">Set to Rejected</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button variant="destructive" size="sm" onClick={bulkDelete}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Selected
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setRowSelection({})}>
+                            Clear Selection
+                        </Button>
+                    </div>
+                )}
 
                 {/* Filters */}
                 <div className="flex items-center gap-4 flex-wrap">
@@ -487,8 +698,9 @@ function CandidatesPageContent() {
                         <SelectContent>
                             <SelectItem value="5">5 per page</SelectItem>
                             <SelectItem value="10">10 per page</SelectItem>
-                            <SelectItem value="20">20 per page</SelectItem>
+                            <SelectItem value="25">25 per page</SelectItem>
                             <SelectItem value="50">50 per page</SelectItem>
+                            <SelectItem value="100">100 per page</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -496,7 +708,7 @@ function CandidatesPageContent() {
                 {/* Info bar */}
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>
-                        💡 Drag column headers to reorder • Drag column edges to resize
+                        💡 Drag column headers to reorder • Drag column edges to resize • Click checkbox to select
                     </span>
                 </div>
 
@@ -539,7 +751,11 @@ function CandidatesPageContent() {
                                     </TableRow>
                                 ) : (
                                     table.getRowModel().rows.map((row) => (
-                                        <TableRow key={row.id}>
+                                        <TableRow
+                                            key={row.id}
+                                            data-state={row.getIsSelected() && 'selected'}
+                                            className={row.getIsSelected() ? 'bg-primary/5' : ''}
+                                        >
                                             {row.getVisibleCells().map((cell) => (
                                                 <TableCell
                                                     key={cell.id}
@@ -593,6 +809,14 @@ function CandidatesPageContent() {
                         </Button>
                     </div>
                 </div>
+
+                {/* Candidate Detail Modal */}
+                <CandidateDetailModal
+                    application={selectedCandidate}
+                    isOpen={isDetailModalOpen}
+                    onClose={() => setIsDetailModalOpen(false)}
+                    jobs={jobs}
+                />
             </div>
         </MainLayout>
     );
