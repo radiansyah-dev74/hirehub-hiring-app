@@ -32,6 +32,9 @@ interface AppState {
     error: string | null;
     setError: (error: string | null) => void;
 
+    // Duplicate application check (async - queries database)
+    hasApplied: (jobId: string, email: string) => Promise<boolean>;
+
     // Supabase mode indicator
     isUsingSupabase: boolean;
 }
@@ -43,6 +46,7 @@ const mockJobs: Job[] = [
         title: 'Senior Frontend Developer',
         description: 'We are looking for an experienced frontend developer with expertise in React, TypeScript, and modern CSS frameworks. You will be responsible for building user interfaces, optimizing performance, and mentoring junior developers.',
         department: 'Engineering',
+        job_type: 'fulltime',
         salary_range: 'Rp15.000.000 - Rp25.000.000',
         is_active: true,
         status: 'active',
@@ -62,6 +66,7 @@ const mockJobs: Job[] = [
         title: 'Backend Engineer',
         description: 'Join our backend team to build scalable APIs and services using Node.js and PostgreSQL. Experience with microservices architecture is a plus.',
         department: 'Engineering',
+        job_type: 'fulltime',
         salary_range: 'Rp12.000.000 - Rp18.000.000',
         is_active: true,
         status: 'active',
@@ -79,6 +84,7 @@ const mockJobs: Job[] = [
         title: 'UI/UX Designer',
         description: 'We need a creative designer to craft beautiful user experiences. Proficiency in Figma and understanding of design systems is required.',
         department: 'Design',
+        job_type: 'fulltime',
         salary_range: 'Rp10.000.000 - Rp15.000.000',
         is_active: true,
         status: 'active',
@@ -95,6 +101,7 @@ const mockJobs: Job[] = [
         title: 'Product Manager',
         description: 'Lead product strategy and work with cross-functional teams to deliver amazing products. Experience in agile methodologies required.',
         department: 'Product',
+        job_type: 'fulltime',
         salary_range: 'Rp18.000.000 - Rp28.000.000',
         is_active: false,
         status: 'inactive',
@@ -110,6 +117,7 @@ const mockJobs: Job[] = [
         title: 'Marketing Intern',
         description: 'Great opportunity for students or fresh graduates to learn digital marketing, social media management, and content creation.',
         department: 'Marketing',
+        job_type: 'intern',
         salary_range: 'Rp3.000.000 - Rp5.000.000',
         is_active: true,
         status: 'active',
@@ -227,6 +235,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     error: null,
 
     setError: (error) => set({ error }),
+
+    // Check if user has already applied for a job (queries database)
+    hasApplied: async (jobId: string, email: string): Promise<boolean> => {
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // If Supabase is configured, query the database
+        if (isSupabaseConfigured) {
+            try {
+                const result = await supabaseService.checkApplicationExists(jobId, normalizedEmail);
+                return result;
+            } catch (error) {
+                console.error('Error checking duplicate application:', error);
+                // Fallback to local state check on error
+            }
+        }
+
+        // Fallback: Check in local state (for demo mode or if DB query fails)
+        const { applications } = get();
+        const existsInStore = applications.some(
+            app => app.job_id === jobId && app.email.toLowerCase() === normalizedEmail
+        );
+        const existsInSession = sessionApplications.some(
+            app => app.job_id === jobId && app.email.toLowerCase() === normalizedEmail
+        );
+        return existsInStore || existsInSession;
+    },
 
     fetchJobs: async () => {
         set({ isLoadingJobs: true, error: null });

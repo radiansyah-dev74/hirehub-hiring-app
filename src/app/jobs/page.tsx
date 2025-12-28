@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, DollarSign, Clock, ArrowRight } from 'lucide-react';
-import { Job } from '@/types';
+import { Search, MapPin, DollarSign, Clock, ArrowRight, Camera } from 'lucide-react';
+import { Job, JOB_TYPES } from '@/types';
 
 export default function JobsPage() {
     const { jobs, applications, fetchJobs, fetchApplications } = useAppStore();
@@ -84,6 +84,8 @@ export default function JobsPage() {
 }
 
 function JobCard({ job, applied }: { job: Job; applied: boolean }) {
+    const jobTypeInfo = JOB_TYPES.find(t => t.value === job.job_type) || JOB_TYPES[0];
+
     return (
         <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-primary/5">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -109,8 +111,14 @@ function JobCard({ job, applied }: { job: Job; applied: boolean }) {
                     )}
                     <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        <span>Full-time</span>
+                        <span>{jobTypeInfo.label}</span>
                     </div>
+                    {jobTypeInfo.webcamRequired && (
+                        <div className="flex items-center gap-1 text-orange-500">
+                            <Camera className="h-4 w-4" />
+                            <span className="text-xs">Photo required</span>
+                        </div>
+                    )}
                     <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
                         <span>Remote</span>

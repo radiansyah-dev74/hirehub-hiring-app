@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/store';
@@ -11,12 +12,35 @@ import {
     LogOut,
     LayoutDashboard,
     FileText,
+    User,
+    Moon,
+    Sun,
 } from 'lucide-react';
 
 export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { userRole, setUserRole } = useAppStore();
+    const [isDark, setIsDark] = useState(true);
+
+    // Initialize dark mode from localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('hirehub-dark-mode');
+            const prefersDark = saved === null
+                ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                : saved === 'true';
+            setIsDark(prefersDark);
+            document.documentElement.classList.toggle('dark', prefersDark);
+        }
+    }, []);
+
+    const toggleDarkMode = () => {
+        const newValue = !isDark;
+        setIsDark(newValue);
+        document.documentElement.classList.toggle('dark', newValue);
+        localStorage.setItem('hirehub-dark-mode', String(newValue));
+    };
 
     const adminLinks = [
         { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,6 +57,7 @@ export function Sidebar() {
 
     const handleSignOut = () => {
         setUserRole(null);
+        localStorage.removeItem('hirehub_user');
         router.push('/');
     };
 
@@ -80,10 +105,44 @@ export function Sidebar() {
                             </Link>
                         );
                     })}
+
+                    {/* Profile Link */}
+                    <Link
+                        href="/profile"
+                        className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                            pathname === '/profile'
+                                ? 'bg-[#FFB400] text-[#1D1F20]'
+                                : 'text-gray-400 hover:bg-[#2A2D2F] hover:text-white'
+                        )}
+                    >
+                        <User className="h-5 w-5" />
+                        Profile
+                    </Link>
                 </nav>
 
-                {/* Sign Out */}
-                <div className="border-t border-[#3A3D3F] p-4">
+                {/* Dark Mode Toggle & Sign Out */}
+                <div className="border-t border-[#3A3D3F] p-4 space-y-2">
+                    {/* Dark Mode Toggle */}
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-3 text-gray-400 hover:text-white hover:bg-[#2A2D2F]"
+                        onClick={toggleDarkMode}
+                    >
+                        {isDark ? (
+                            <>
+                                <Sun className="h-5 w-5" />
+                                Light Mode
+                            </>
+                        ) : (
+                            <>
+                                <Moon className="h-5 w-5" />
+                                Dark Mode
+                            </>
+                        )}
+                    </Button>
+
+                    {/* Sign Out */}
                     <Button
                         variant="ghost"
                         className="w-full justify-start gap-3 text-gray-400 hover:text-white hover:bg-[#2A2D2F]"

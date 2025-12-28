@@ -667,8 +667,10 @@ function CandidatesPageContent() {
                             value={globalFilter}
                             onChange={(e) => setGlobalFilter(e.target.value)}
                             className="pl-10"
+                            aria-label="Search candidates by name or email"
                         />
                     </div>
+                    {/* Status Filter */}
                     <Select
                         value={
                             (table.getColumn('status')?.getFilterValue() as string) || 'all'
@@ -677,7 +679,7 @@ function CandidatesPageContent() {
                             table.getColumn('status')?.setFilterValue(value === 'all' ? '' : value)
                         }
                     >
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="w-40" aria-label="Filter by status">
                             <SelectValue placeholder="Filter by status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -688,11 +690,12 @@ function CandidatesPageContent() {
                             <SelectItem value="rejected">Rejected</SelectItem>
                         </SelectContent>
                     </Select>
+                    {/* Per Page */}
                     <Select
                         value={pageSize.toString()}
                         onValueChange={(value) => setPageSize(Number(value))}
                     >
-                        <SelectTrigger className="w-32">
+                        <SelectTrigger className="w-32" aria-label="Rows per page">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

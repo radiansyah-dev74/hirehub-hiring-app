@@ -19,7 +19,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { ArrowLeft, Save, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { AVAILABLE_FORM_FIELDS, DEPARTMENTS, FieldRequirement, Job } from '@/types';
+import { AVAILABLE_FORM_FIELDS, DEPARTMENTS, FieldRequirement, Job, JOB_TYPES, JobType } from '@/types';
 
 type FormFieldConfig = {
     field_name: string;
@@ -38,6 +38,7 @@ export default function EditJobPage() {
     const [department, setDepartment] = useState('');
     const [salaryMin, setSalaryMin] = useState('');
     const [salaryMax, setSalaryMax] = useState('');
+    const [jobType, setJobType] = useState<JobType>('fulltime');
     const [isActive, setIsActive] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -56,6 +57,7 @@ export default function EditJobPage() {
             setTitle(job.title);
             setDescription(job.description || '');
             setDepartment(job.department || '');
+            setJobType(job.job_type || 'fulltime');
             setIsActive(job.is_active);
 
             // Parse salary range
@@ -134,6 +136,7 @@ export default function EditJobPage() {
                 title,
                 description: description || null,
                 department,
+                job_type: jobType,
                 salary_range: formatSalaryRange(),
                 is_active: isActive,
                 status: isActive ? 'active' : 'inactive',
@@ -259,6 +262,30 @@ export default function EditJobPage() {
                                 {validationErrors.department && (
                                     <p className="text-sm text-destructive">{validationErrors.department}</p>
                                 )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="jobType">Job Type *</Label>
+                                <Select value={jobType} onValueChange={(value) => setJobType(value as typeof jobType)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select job type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {JOB_TYPES.map((type) => (
+                                            <SelectItem key={type.value} value={type.value}>
+                                                <span className="flex items-center gap-2">
+                                                    {type.label}
+                                                    {type.webcamRequired && (
+                                                        <span className="text-xs text-muted-foreground">(Webcam required)</span>
+                                                    )}
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    {jobType === 'fulltime' ? '📷 Webcam photo is mandatory for this job type' : '📷 Webcam photo is optional for this job type'}
+                                </p>
                             </div>
 
                             <div className="space-y-2">

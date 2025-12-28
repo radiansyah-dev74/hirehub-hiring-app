@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store';
+import { authService } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,18 +25,21 @@ export default function LoginPage() {
         setError('');
         setIsLoading(true);
 
-        // Simulate login - in real app this would call Supabase Auth
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+            const { user, error: authError } = await authService.signIn(email, password);
 
-        // Demo: check for admin or applicant based on email
-        if (email.includes('admin')) {
-            setUserRole('admin');
-            router.push('/admin');
-        } else if (email && password) {
-            setUserRole('applicant');
-            router.push('/jobs');
-        } else {
-            setError('Please enter valid credentials');
+            if (authError) {
+                setError(authError.message);
+                setIsLoading(false);
+                return;
+            }
+
+            if (user) {
+                setUserRole(user.role);
+                router.push(user.role === 'admin' ? '/admin' : '/jobs');
+            }
+        } catch (err) {
+            setError('An unexpected error occurred');
         }
         setIsLoading(false);
     };

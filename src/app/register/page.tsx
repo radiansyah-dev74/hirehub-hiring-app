@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store';
+import { authService } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,7 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [authError, setAuthError] = useState('');
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
@@ -37,23 +39,28 @@ export default function RegisterPage() {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+        setAuthError('');
 
         if (!validate()) return;
 
         setIsLoading(true);
 
-        // Simulate registration - in real app this would call Supabase Auth
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            const { user, error } = await authService.signUp(email, password, name);
 
-        // Store user info in localStorage (mock)
-        localStorage.setItem('hirehub_user', JSON.stringify({
-            name,
-            email,
-            role: 'applicant',
-        }));
+            if (error) {
+                setAuthError(error.message);
+                setIsLoading(false);
+                return;
+            }
 
-        setUserRole('applicant');
-        router.push('/jobs');
+            if (user) {
+                setUserRole(user.role);
+                router.push('/jobs');
+            }
+        } catch (err) {
+            setAuthError('An unexpected error occurred');
+        }
         setIsLoading(false);
     };
 

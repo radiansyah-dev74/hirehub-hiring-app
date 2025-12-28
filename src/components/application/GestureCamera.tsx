@@ -8,9 +8,10 @@ import { Camera, RefreshCw, Check, Hand } from 'lucide-react';
 interface GestureCameraProps {
     onCapture: (imageData: string) => void;
     required?: boolean;
+    onSkip?: () => void;
 }
 
-export function GestureCamera({ onCapture, required }: GestureCameraProps) {
+export function GestureCamera({ onCapture, required = true, onSkip }: GestureCameraProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isStreaming, setIsStreaming] = useState(false);
@@ -120,10 +121,16 @@ export function GestureCamera({ onCapture, required }: GestureCameraProps) {
             <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                     <Camera className="h-5 w-5" />
-                    Profile Photo {required && <span className="text-red-500">*</span>}
+                    Profile Photo
+                    {required ? (
+                        <span className="text-red-500">*</span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                    )}
                 </CardTitle>
                 <CardDescription>
                     Use hand gestures to take your photo automatically
+                    {!required && ' - You can skip this step'}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -224,10 +231,17 @@ export function GestureCamera({ onCapture, required }: GestureCameraProps) {
                         <p className="mb-4 text-center text-muted-foreground">
                             Click below to start camera and use hand gestures
                         </p>
-                        <Button type="button" onClick={startCamera} className="gap-2">
-                            <Camera className="h-4 w-4" />
-                            Start Camera
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" onClick={startCamera} className="gap-2">
+                                <Camera className="h-4 w-4" />
+                                Start Camera
+                            </Button>
+                            {!required && onSkip && (
+                                <Button type="button" variant="outline" onClick={onSkip}>
+                                    Skip Photo
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 )}
 

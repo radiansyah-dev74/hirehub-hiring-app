@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Job, Application, JobFormConfig } from '@/types';
 
 // Environment check - will use mock data if not configured
@@ -8,10 +8,44 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 // Check if Supabase is properly configured
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+// Log configuration status (only in development)
+if (typeof window !== 'undefined') {
+    if (!supabaseUrl) {
+        console.warn('⚠️ NEXT_PUBLIC_SUPABASE_URL is not set. Using mock data mode.');
+    }
+    if (!supabaseAnonKey) {
+        console.warn('⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. Using mock data mode.');
+    }
+    if (isSupabaseConfigured) {
+        console.log('✅ Supabase is configured:', supabaseUrl?.substring(0, 30) + '...');
+    }
+}
+
 // Create client only if configured
-export const supabase = isSupabaseConfigured
+export const supabase: SupabaseClient | null = isSupabaseConfigured
     ? createClient(supabaseUrl!, supabaseAnonKey!)
     : null;
+
+// Test connection function - call this to verify Supabase is working
+export const testSupabaseConnection = async (): Promise<{ success: boolean; message: string }> => {
+    if (!supabase) {
+        console.warn('🔴 Supabase not configured. Running in demo mode with mock data.');
+        return { success: false, message: 'Supabase not configured' };
+    }
+
+    try {
+        const { data, error } = await supabase.from('applications').select('id').limit(1);
+        if (error) {
+            console.error('🔴 Supabase connection test FAILED:', error.message);
+            return { success: false, message: error.message };
+        }
+        console.log('🟢 Supabase connection test OK. Data:', data);
+        return { success: true, message: 'Connected successfully' };
+    } catch (err) {
+        console.error('🔴 Supabase connection test ERROR:', err);
+        return { success: false, message: String(err) };
+    }
+};
 
 // Database types for Supabase
 export type DbJob = {
@@ -71,6 +105,7 @@ export const supabaseService = {
                 title: job.title,
                 description: job.description,
                 department: job.department,
+                job_type: job.job_type,
                 salary_range: job.salary_range,
                 is_active: job.is_active,
             })
@@ -104,6 +139,7 @@ export const supabaseService = {
                 title: updates.title,
                 description: updates.description,
                 department: updates.department,
+                job_type: updates.job_type,
                 salary_range: updates.salary_range,
                 is_active: updates.is_active,
                 updated_at: new Date().toISOString(),
@@ -165,6 +201,21 @@ export const supabaseService = {
         const { data, error } = await query;
         if (error) throw error;
         return data || [];
+    },
+
+    // Check if an application already exists for a job + email combination
+    async checkApplicationExists(jobId: string, email: string): Promise<boolean> {
+        if (!supabase) throw new Error('Supabase not configured');
+
+        const { data, error } = await supabase
+            .from('applications')
+            .select('id')
+            .eq('job_id', jobId)
+            .eq('email', email.toLowerCase().trim())
+            .maybeSingle();
+
+        if (error) throw error;
+        return !!data;
     },
 
     async createApplication(application: Omit<Application, 'id' | 'created_at' | 'status'>): Promise<Application> {

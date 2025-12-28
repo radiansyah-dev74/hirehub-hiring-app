@@ -12,11 +12,21 @@ export interface JobFormConfig {
 // Job status type
 export type JobStatus = 'active' | 'inactive' | 'draft';
 
+// Job type for webcam conditional requirement
+export type JobType = 'fulltime' | 'intern' | 'contract';
+
+export const JOB_TYPES = [
+    { value: 'fulltime', label: 'Full-time', webcamRequired: true },
+    { value: 'intern', label: 'Intern', webcamRequired: false },
+    { value: 'contract', label: 'Contract', webcamRequired: false },
+] as const;
+
 export interface Job {
     id: string;
     title: string;
     description: string | null;
     department: string | null;
+    job_type: JobType;
     salary_range: string | null;
     is_active: boolean;
     status?: JobStatus;

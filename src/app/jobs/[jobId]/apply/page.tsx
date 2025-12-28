@@ -20,8 +20,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { AVAILABLE_FORM_FIELDS, Job, JobFormConfig } from '@/types';
+import { ArrowLeft, Send, CheckCircle, AlertCircle, Loader2, Ban } from 'lucide-react';
+import { AVAILABLE_FORM_FIELDS, Job, JobFormConfig, JOB_TYPES } from '@/types';
 import { generateApplicationSchema, ApplicationFormData } from '@/lib/validators';
 
 export default function ApplyJobPage() {
@@ -29,12 +29,17 @@ export default function ApplyJobPage() {
     const router = useRouter();
     const jobId = params.jobId as string;
 
-    const { jobs, fetchJobs, createApplication, error: storeError } = useAppStore();
+    const { jobs, fetchJobs, createApplication, hasApplied, error: storeError } = useAppStore();
     const [job, setJob] = useState<Job | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error' | 'duplicate'>('idle');
     const [photoData, setPhotoData] = useState<string | null>(null);
+    const [photoSkipped, setPhotoSkipped] = useState(false);
+    const [userEmail, setUserEmail] = useState<string>('');
+    // Early duplicate check states
+    const [emailDuplicateWarning, setEmailDuplicateWarning] = useState(false);
+    const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
     // Generate dynamic schema based on job's form config
     const validationSchema = useMemo(() => {
@@ -79,17 +84,59 @@ export default function ApplyJobPage() {
 
     const isFieldVisible = (fieldName: string): boolean => {
         const config = getFieldConfig(fieldName);
-        return config?.requirement !== 'hidden';
+        // Field is only visible if it has a config AND requirement is NOT hidden
+        // If no config exists for this field, it should be hidden
+        if (!config) return false;
+        return config.requirement !== 'hidden';
     };
 
     const isFieldRequired = (fieldName: string): boolean => {
         const config = getFieldConfig(fieldName);
+        // For photo field, also check job type for conditional requirement
+        if (fieldName === 'photo' && job?.job_type) {
+            const jobTypeConfig = JOB_TYPES.find(t => t.value === job.job_type);
+            if (jobTypeConfig?.webcamRequired) {
+                return true; // Always required for fulltime
+            }
+        }
         return config?.requirement === 'mandatory';
+    };
+
+    // Check if webcam is required based on job type
+    const isWebcamRequired = (): boolean => {
+        if (!job?.job_type) return false;
+        const jobTypeConfig = JOB_TYPES.find(t => t.value === job.job_type);
+        return jobTypeConfig?.webcamRequired ?? false;
+    };
+
+    // Early duplicate check on email blur
+    const checkEmailDuplicate = async (email: string) => {
+        if (!email || email.length < 5) {
+            setEmailDuplicateWarning(false);
+            return;
+        }
+        setIsCheckingDuplicate(true);
+        try {
+            const isDuplicate = await hasApplied(jobId, email);
+            setEmailDuplicateWarning(isDuplicate);
+        } catch (error) {
+            console.error('Error checking duplicate:', error);
+            setEmailDuplicateWarning(false);
+        } finally {
+            setIsCheckingDuplicate(false);
+        }
     };
 
     const onSubmit = async (data: ApplicationFormData) => {
         setIsSubmitting(true);
         setSubmitStatus('idle');
+
+        // Check for duplicate application BEFORE submitting (queries database)
+        if (await hasApplied(jobId, data.email)) {
+            setSubmitStatus('duplicate');
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
             await createApplication({
@@ -156,6 +203,33 @@ export default function ApplyJobPage() {
                     <div className="flex gap-4">
                         <Button variant="outline" onClick={() => router.push('/jobs')}>
                             Browse More Jobs
+                        </Button>
+                        <Button onClick={() => router.push('/applications')}>
+                            View My Applications
+                        </Button>
+                    </div>
+                </div>
+            </MainLayout>
+        );
+    }
+
+    // Duplicate application error state
+    if (submitStatus === 'duplicate') {
+        return (
+            <MainLayout>
+                <div className="flex flex-col items-center justify-center py-12">
+                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-500/10">
+                        <Ban className="h-10 w-10 text-yellow-500" />
+                    </div>
+                    <h2 className="mb-2 text-2xl font-bold">Already Applied</h2>
+                    <p className="mb-6 text-center text-muted-foreground">
+                        You have already submitted an application for <span className="font-medium text-foreground">{job.title}</span>.
+                        <br />
+                        You can only apply once per job position.
+                    </p>
+                    <div className="flex gap-4">
+                        <Button variant="outline" onClick={() => router.push('/jobs')}>
+                            Browse Other Jobs
                         </Button>
                         <Button onClick={() => router.push('/applications')}>
                             View My Applications
@@ -244,8 +318,21 @@ export default function ApplyJobPage() {
                                     type="email"
                                     placeholder="john@example.com"
                                     {...register('email')}
-                                    className={errors.email ? 'border-red-500' : ''}
+                                    onBlur={(e) => checkEmailDuplicate(e.target.value)}
+                                    className={errors.email || emailDuplicateWarning ? 'border-red-500' : ''}
                                 />
+                                {isCheckingDuplicate && (
+                                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Checking...
+                                    </p>
+                                )}
+                                {emailDuplicateWarning && !isCheckingDuplicate && (
+                                    <p className="text-sm text-yellow-600 flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />
+                                        You have already applied to this position
+                                    </p>
+                                )}
                                 {errors.email && (
                                     <p className="text-sm text-red-500">{String(errors.email.message)}</p>
                                 )}
@@ -326,12 +413,31 @@ export default function ApplyJobPage() {
                 {/* Gesture Camera (if visible) */}
                 {isFieldVisible('photo') && (
                     <div>
-                        <GestureCamera
-                            onCapture={setPhotoData}
-                            required={isFieldRequired('photo')}
-                        />
-                        {errors.photo && !photoData && (
-                            <p className="text-sm text-red-500 mt-2">{errors.photo.message as string}</p>
+                        {!photoSkipped && (
+                            <GestureCamera
+                                onCapture={setPhotoData}
+                                required={isWebcamRequired()}
+                                onSkip={() => setPhotoSkipped(true)}
+                            />
+                        )}
+                        {photoSkipped && (
+                            <div className="rounded-lg border-2 border-dashed p-6 text-center">
+                                <p className="text-muted-foreground">Photo skipped</p>
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    onClick={() => setPhotoSkipped(false)}
+                                    className="mt-2"
+                                >
+                                    Add photo instead
+                                </Button>
+                            </div>
+                        )}
+                        {errors.photo && !photoData && !photoSkipped && (
+                            <p className="text-sm text-red-500 mt-2">
+                                {errors.photo.message as string}
+                                {isWebcamRequired() && ' (Required for full-time positions)'}
+                            </p>
                         )}
                     </div>
                 )}
@@ -339,16 +445,18 @@ export default function ApplyJobPage() {
                 {/* Submit - Teal button like Figma */}
                 <Button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full gap-2 bg-[#0891B2] hover:bg-[#0E7490] text-white font-semibold py-3"
+                    disabled={isSubmitting || emailDuplicateWarning}
+                    className="w-full gap-2 bg-[#0891B2] hover:bg-[#0E7490] text-white font-semibold py-3 disabled:opacity-50"
                 >
                     {isSubmitting ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Submitting...
                         </>
+                    ) : emailDuplicateWarning ? (
+                        'Already Applied'
                     ) : (
-                        'Submit'
+                        'Submit Application'
                     )}
                 </Button>
             </form>
