@@ -1,8 +1,8 @@
 # 📋 **SUBMISSION PACKAGE - HIREHUB HIRING MANAGEMENT APP**
 
 ## 🎯 **CANDIDATE INFORMATION**
-- **Full Name:** [Your Full Name]
-- **Email Address:** [Your Email Address]
+- **Full Name:** [Setiawan Radiansyah]
+- **Email Address:** [Radiansyah.s74]
 
 ---
 
@@ -241,6 +241,77 @@ npm run dev
 - **Code Quality:** Clean architecture, proper TypeScript, reusable components
 - **Dynamic Behavior:** Forms and validation truly adapt to backend configuration
 - **User Experience:** Intuitive flows, clear feedback, responsive design
+
+---
+
+## 10. **TECHNOLOGY STACK**
+
+### **Frontend Framework**
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Next.js** | 15.x | React framework with App Router, Server Components, Turbopack |
+| **React** | 19.x | UI library with hooks and modern patterns |
+| **TypeScript** | 5.x | Type-safe development, better DX |
+
+### **Styling & UI**
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Tailwind CSS** | 4.0 | Utility-first CSS framework |
+| **shadcn/ui** | Latest | Accessible, customizable UI components |
+| **Lucide React** | Latest | Icon library |
+| **class-variance-authority** | Latest | Component variant management |
+
+### **State & Data Management**
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Zustand** | 5.x | Lightweight state management |
+| **@tanstack/react-table** | 8.x | Advanced data tables with sorting, filtering, pagination |
+| **@dnd-kit** | Latest | Drag-and-drop for column reordering |
+
+### **Forms & Validation**
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **React Hook Form** | 7.x | Performant form handling |
+| **Zod** | 3.x | Schema validation with TypeScript inference |
+| **@hookform/resolvers** | Latest | Zod integration with React Hook Form |
+
+### **Backend & Database**
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Supabase** | Latest | Backend-as-a-Service (PostgreSQL + Auth + Storage) |
+| **PostgreSQL** | 15.x | Relational database with JSONB support |
+| **Supabase Auth** | Latest | Authentication & authorization |
+
+### **Development Tools**
+| Technology | Purpose |
+|------------|---------|
+| **ESLint** | Code linting and quality |
+| **Turbopack** | Fast development builds |
+| **Git** | Version control |
+| **Vercel** | Deployment & hosting |
+
+### **Project Architecture**
+```
+src/
+├── app/                    # Next.js App Router pages
+│   ├── admin/             # Admin dashboard (jobs, candidates)
+│   ├── jobs/              # Public job board
+│   ├── login/register/    # Authentication pages
+│   └── api/               # API routes (testing endpoints)
+├── components/
+│   ├── ui/                # shadcn/ui components
+│   ├── layout/            # MainLayout, Sidebar
+│   └── application/       # GestureCamera, form components
+├── lib/
+│   ├── supabase.ts        # Supabase client & services
+│   ├── auth.ts            # Authentication service
+│   ├── formatters.ts      # Currency, date formatters
+│   └── validators.ts      # Zod schemas
+├── store/
+│   └── index.ts           # Zustand store
+└── types/
+    └── index.ts           # TypeScript type definitions
+```
 
 ---
 
